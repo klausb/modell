@@ -169,6 +169,10 @@ class PrimitiveCreateParams(ModellBaseModel):
     location: list[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
     rotation: list[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
     scale: list[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0])
+    dimensions: list[float] | None = None
+    size: float | None = None
+    radius: float | None = None
+    depth: float | None = None
 
 
 class TransformObjectParams(ModellBaseModel):

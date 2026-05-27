@@ -29,10 +29,28 @@ _MODIFIER_MAP = {
 }
 
 
+CURVED_RADIAL_SEGMENTS = 64
+CURVED_VERTICAL_SEGMENTS = 32
+TORUS_MINOR_SEGMENTS = 24
+
+
 def _vec3(values: Any, default: tuple[float, float, float]) -> tuple[float, float, float]:
     if not isinstance(values, (list, tuple)) or len(values) != 3:
         return default
     return float(values[0]), float(values[1]), float(values[2])
+
+
+def _maybe_vec3(values: Any) -> tuple[float, float, float] | None:
+    if not isinstance(values, (list, tuple)) or len(values) != 3:
+        return None
+    return float(values[0]), float(values[1]), float(values[2])
+
+
+def _float_param(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _scene_objects() -> list[bpy.types.Object]:
@@ -135,17 +153,43 @@ def do_create_primitive(params: dict[str, Any]) -> dict[str, Any]:
     location = _vec3(params.get("location"), (0.0, 0.0, 0.0))
     rotation = _vec3(params.get("rotation"), (0.0, 0.0, 0.0))
     scale = _vec3(params.get("scale"), (1.0, 1.0, 1.0))
+    dimensions = _maybe_vec3(params.get("dimensions"))
 
     obj, bm = _create_mesh_object(name)
 
     if primitive_type == "CUBE":
-        bmesh.ops.create_cube(bm, size=1.0)
+        size = _float_param(params.get("size"), 1.0)
+        bmesh.ops.create_cube(bm, size=size)
     elif primitive_type == "CYLINDER":
-        bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=0.5, radius2=0.5, depth=1.0)
+        radius = _float_param(params.get("radius"), 0.5)
+        depth = _float_param(params.get("depth"), 1.0)
+        bmesh.ops.create_cone(
+            bm,
+            cap_ends=True,
+            segments=CURVED_RADIAL_SEGMENTS,
+            radius1=radius,
+            radius2=radius,
+            depth=depth,
+        )
     elif primitive_type == "SPHERE":
-        bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.5)
+        radius = _float_param(params.get("radius"), 0.5)
+        bmesh.ops.create_uvsphere(
+            bm,
+            u_segments=CURVED_RADIAL_SEGMENTS,
+            v_segments=CURVED_VERTICAL_SEGMENTS,
+            radius=radius,
+        )
     elif primitive_type == "CONE":
-        bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=0.5, radius2=0.0, depth=1.0)
+        radius = _float_param(params.get("radius"), 0.5)
+        depth = _float_param(params.get("depth"), 1.0)
+        bmesh.ops.create_cone(
+            bm,
+            cap_ends=True,
+            segments=CURVED_RADIAL_SEGMENTS,
+            radius1=radius,
+            radius2=0.0,
+            depth=depth,
+        )
     elif primitive_type == "PLANE":
         bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5)
     elif primitive_type == "TORUS":
@@ -153,8 +197,8 @@ def do_create_primitive(params: dict[str, Any]) -> dict[str, Any]:
             bm,
             cap_ends=False,
             cap_tris=False,
-            segments=32,
-            segments_minor=12,
+            segments=CURVED_RADIAL_SEGMENTS,
+            segments_minor=TORUS_MINOR_SEGMENTS,
             radius_major=0.7,
             radius_minor=0.2,
         )
@@ -167,6 +211,8 @@ def do_create_primitive(params: dict[str, Any]) -> dict[str, Any]:
     obj.location = location
     obj.rotation_euler = rotation
     obj.scale = scale
+    if dimensions is not None:
+        obj.dimensions = dimensions
 
     return {"created": _basic_object_payload(obj), "primitive_type": primitive_type}
 

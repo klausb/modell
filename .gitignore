@@ -13,3 +13,4 @@ build/
 coverage/
 modell.example.toml
 modell.toml
+*.zip
