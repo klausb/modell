@@ -1,0 +1,21 @@
+[blender]
+host = "127.0.0.1"
+port = 8765
+token = "change-me"
+timeout_seconds = 30
+connect_retries = 2
+retry_backoff_seconds = 0.5
+
+[llm]
+provider = "openai_compatible"
+model = "gpt-4.1-mini"
+base_url = "http://127.0.0.1:4000/v1"
+api_key = "env:MODELL_LLM_API_KEY"
+temperature = 0.2
+max_tokens = 2000
+
+[agent]
+max_steps = 10
+verbosity = 1
+planning_interval = 1
+require_confirmation_for_destructive = true
