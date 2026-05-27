@@ -1,5 +1,5 @@
 [blender]
-host = "127.0.0.1"
+host = "192.168.2.175"
 port = 8765
 token = "change-me"
 timeout_seconds = 30
@@ -8,9 +8,9 @@ retry_backoff_seconds = 0.5
 
 [llm]
 provider = "openai_compatible"
-model = "gpt-4.1-mini"
-base_url = "http://127.0.0.1:4000/v1"
-api_key = "env:MODELL_LLM_API_KEY"
+model = "gemma-4-31b-fp8"
+base_url = "https://model-broker.aviator-model.bp.anthos.otxlab.net/v1"
+api_key = "change-me"
 temperature = 0.2
 max_tokens = 2000
 

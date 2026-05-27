@@ -125,7 +125,12 @@ def do_get_object_info(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def do_create_primitive(params: dict[str, Any]) -> dict[str, Any]:
-    primitive_type = str(params.get("primitive_type", "CUBE")).upper()
+    raw_primitive = params.get("primitive_type")
+    if raw_primitive is None:
+        raw_primitive = params.get("type")
+    if raw_primitive is None:
+        raw_primitive = params.get("primitive")
+    primitive_type = str(raw_primitive or "CUBE").upper()
     name = str(params.get("name") or f"{primitive_type.title()}Obj")
     location = _vec3(params.get("location"), (0.0, 0.0, 0.0))
     rotation = _vec3(params.get("rotation"), (0.0, 0.0, 0.0))
@@ -163,7 +168,7 @@ def do_create_primitive(params: dict[str, Any]) -> dict[str, Any]:
     obj.rotation_euler = rotation
     obj.scale = scale
 
-    return {"created": _basic_object_payload(obj)}
+    return {"created": _basic_object_payload(obj), "primitive_type": primitive_type}
 
 
 def do_create_curve_profile(params: dict[str, Any]) -> dict[str, Any]:

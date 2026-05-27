@@ -56,7 +56,20 @@ class ModellTools:
         return self._call(ActionName.GET_OBJECT_INFO, {"object_name": object_name})
 
     def create_primitive(self, **params: Any) -> Any:
-        return self._call(ActionName.CREATE_PRIMITIVE, params)
+        normalized = dict(params)
+
+        # Be tolerant to common LLM argument variants.
+        if "primitive_type" not in normalized:
+            if "type" in normalized:
+                normalized["primitive_type"] = normalized.pop("type")
+            elif "primitive" in normalized:
+                normalized["primitive_type"] = normalized.pop("primitive")
+
+        primitive = normalized.get("primitive_type")
+        if isinstance(primitive, str):
+            normalized["primitive_type"] = primitive.upper()
+
+        return self._call(ActionName.CREATE_PRIMITIVE, normalized)
 
     def create_curve_profile(self, **params: Any) -> Any:
         return self._call(ActionName.CREATE_CURVE_PROFILE, params)

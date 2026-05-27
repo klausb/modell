@@ -8,6 +8,11 @@ from modell.llm import DeterministicEchoLLM, build_smolagents_model
 from modell.prompts import SYSTEM_PROMPT
 from modell.tools import ModellTools
 
+try:
+    from smolagents import Tool  # type: ignore
+except Exception:  # pragma: no cover - environment dependent
+    Tool = object  # type: ignore[assignment]
+
 
 @dataclass(slots=True)
 class AgentRuntime:
@@ -30,7 +35,7 @@ class AgentRuntime:
             return None
 
         tool_map = self._tool_map_for_agent()
-        tool_functions = [
+        tool_objects = [
             _make_agent_tool(func_name, func)
             for func_name, func in tool_map.items()
         ]
@@ -38,13 +43,12 @@ class AgentRuntime:
         try:
             return ToolCallingAgent(
                 model=model,
-                tools=tool_functions,
+                tools=tool_objects,
                 max_steps=self.config.agent.max_steps,
-                system_prompt=SYSTEM_PROMPT,
                 verbosity_level=self.config.agent.verbosity,
                 planning_interval=self.config.agent.planning_interval,
             )
-        except TypeError:
+        except Exception:
             return None
 
     def _tool_map_for_agent(self) -> dict[str, Any]:
@@ -124,15 +128,43 @@ class AgentRuntime:
 
 
 def _make_agent_tool(name: str, fn: Any) -> Any:
-    """Return a smolagents-compatible callable.
+    """Return a smolagents Tool object wrapper.
 
-    TODO: If your smolagents version requires specific decorators (for example `@tool`),
-    wrap these callables with that API here.
+    This wrapper intentionally normalizes all tool calls to a single `params` object
+    so it remains compatible across smolagents versions that require Tool subclasses.
     """
 
-    def _tool_wrapper(*args: Any, **kwargs: Any) -> Any:
-        return fn(*args, **kwargs)
+    class _CallableTool(Tool):  # type: ignore[misc,valid-type]
+        skip_forward_signature_validation = True
 
-    _tool_wrapper.__name__ = name
-    _tool_wrapper.__doc__ = f"Modell tool: {name}"
-    return _tool_wrapper
+        def __init__(self) -> None:
+            self.is_initialized = True
+
+        def forward(self, params: dict[str, Any] | None = None) -> Any:
+            payload = params or {}
+            if isinstance(payload, dict):
+                # smolagents may pass either direct args ({"object_name": ...})
+                # or a nested params object ({"params": {...}}). Normalize both.
+                if "params" in payload and isinstance(payload.get("params"), dict):
+                    nested = dict(payload["params"])
+                    passthrough = {k: v for k, v in payload.items() if k != "params"}
+                    normalized = {**nested, **passthrough}
+                else:
+                    normalized = payload
+                return fn(**normalized)
+            raise ValueError("params must be an object")
+
+    _CallableTool.name = name  # type: ignore[attr-defined]
+    _CallableTool.description = (  # type: ignore[attr-defined]
+        f"Modell tool `{name}`. Provide action parameters in the `params` object. "
+        "Use an empty object when there are no parameters."
+    )
+    _CallableTool.inputs = {  # type: ignore[attr-defined]
+        "params": {
+            "type": "object",
+            "description": "Tool parameters as a JSON object",
+        }
+    }
+    _CallableTool.output_type = "object"  # type: ignore[attr-defined]
+
+    return _CallableTool()
